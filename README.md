@@ -24,3 +24,10 @@ RemoteURL: http://localhost:3000/baseq3/example.pk3
 ****************************
 writing to: /home/robo9k/.q3a/baseq3/example.pk3.tmp
 ```
+
+```console
+$ curl -v http://localhost:3000/baseq3/example.pk3
+< HTTP/1.1 307 Temporary Redirect
+< location: https://api.test.mod.io/v1/games/1024/mods/10519/files/14391/download
+< expires: Thu, 17 Apr 2025 16:08:29 GMT
+```
