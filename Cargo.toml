@@ -7,12 +7,9 @@ rust-version = "1.85"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = { version = "0.6.12", features = ["headers", "http2", "macros"] }
-axum-extra = { version = "0.7.2", features = ["typed-routing"] }
-dashmap = "5.4.0"
-futures = "0.3.28"
-headers = "0.3.8"
-http = "0.2.9"
-modio = "0.7.2"
-serde = { version = "1.0.159", features = ["derive"] }
-tokio = { version = "1.27.0", features = ["full"] }
+axum = { version = "0.8", default-features = false, features = ["tokio", "http1", "tower-log", "tracing"] }
+axum-extra = { version = "0.12", default-features = false, features = ["typed-routing", "typed-header", "tracing"] }
+tokio = { version = "1", default-features = false, features = ["macros", "rt-multi-thread"] }
+headers = { version = "0.4", default-features = false, features = [] }
+serde = { version = "1", default-features = false, features = ["derive"] }
+modio = { version = "0.14", default-features = false, features = ["rustls-native-roots"]}
