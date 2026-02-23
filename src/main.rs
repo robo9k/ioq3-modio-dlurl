@@ -1,16 +1,18 @@
 use axum::{
-    Router, TypedHeader,
+    Router,
     extract::State,
-    headers::Expires,
     response::{IntoResponse, Redirect},
 };
+use axum_extra::TypedHeader;
 use axum_extra::routing::{RouterExt as _, TypedPath};
-use modio::{Builder as ModioBuilder, Credentials, Modio};
+use headers::Expires;
+use modio::types::id::{FileId, GameId, ModId};
 use serde::Deserialize;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 #[derive(TypedPath, Deserialize)]
-#[typed_path("/:game_name/:pak_name")]
+#[typed_path("/{game_name}/{pak_name}")]
 struct PakUrl {
     game_name: String,
     pak_name: String,
@@ -18,10 +20,9 @@ struct PakUrl {
 
 #[derive(Clone)]
 struct AppState {
-    modio: Modio,
+    modio: Arc<modio::Client>,
 }
 
-#[axum::debug_handler]
 async fn get_pak(
     PakUrl {
         game_name,
@@ -31,19 +32,25 @@ async fn get_pak(
 ) -> impl IntoResponse {
     println!("get_pak: {game_name}/{pak_name}");
 
-    let game_id = 1024;
-    let mod_id = 10519;
-    let file_id = 14391;
+    let game_id = GameId::new(1024);
+    let mod_id = ModId::new(10519);
+    let file_id = FileId::new(14391);
 
-    let mod_ = state.modio.mod_(game_id, mod_id);
-    let file = mod_.file(file_id);
-
-    let file = file.get().await.unwrap();
+    let file = state
+        .modio
+        .get_file(game_id, mod_id, file_id)
+        .await
+        .unwrap()
+        .data()
+        .await
+        .unwrap();
 
     println!("file.download: {:?}", file.download);
 
+    let expires = file.download.date_expires.as_secs().try_into().unwrap();
+
     let expires = SystemTime::UNIX_EPOCH
-        .checked_add(Duration::from_secs(file.download.date_expires))
+        .checked_add(Duration::from_secs(expires))
         .unwrap();
     println!("Expires: {:?}", expires);
 
@@ -57,17 +64,20 @@ async fn get_pak(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let modio = ModioBuilder::new(Credentials::new("2318a53cb5bc72fe7b85ae51f2bc8a21"))
-        .use_test()
+    let modio = modio::Client::builder("0feae296118381c3bc38bab600291c96".to_string())
+        .use_test_env()
         .build()?;
 
-    let state = AppState { modio };
+    let state = AppState {
+        modio: modio.into(),
+    };
 
     let app = Router::new().typed_get(get_pak).with_state(state);
 
-    axum::Server::bind(&"0.0.0.0:3000".parse()?)
-        .serve(app.into_make_service())
-        .await?;
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+    println!("Listening on: {}", listener.local_addr().unwrap());
+
+    axum::serve(listener, app).await?;
 
     Ok(())
 }
